@@ -1,3 +1,7 @@
+###used this to store the threads version of doing this code 
+###used threads so that it could work all together 
+
+
 import rclpy
 from rclpy.node import Node
 import tf_transformations
@@ -28,19 +32,6 @@ import pandas as pd
 from threading import Thread
 
 
-###creating a sort of database to store the colours and the associated object
-###cause of the variation with colours in the coppeliasim some of the colours are a bit off
-colourData = [['Palatinate Purple', 'Purple Circle Shape', '85, 39, 100'],
-               ['Stormcloud','Hospital Bed', '86, 100, 98'],
-               ['Caput Mortuum', 'Orange Circle Shape', '85, 39, 0'],
-               ['Spring Bud', 'Green Circle Shape ', '16, 39, 0'],
-               ['Rosewood', 'Blood Bag Stand', '100, 0, 0'],
-               ['Black Olive', 'Machine Checker', '60, 60, 60'], 
-               ['Gray-Asparagus', 'Surgery Bed', '77, 100, 66'],
-               ['Chocolate (Traditional)', 'Yellow Circle Shape', '85, 71, 0']] ###stores the colour of the the objects in the scene
-
-ObjectDataset = pd.DataFrame(colourData,columns = ['Colours', 'Object', 'RGB'])
-#print(ObjectDataset)
 
 class ThymioState(Enum):
     # Initially, move straight until the robot reaches an obstacle
@@ -56,7 +47,7 @@ from sensor_msgs.msg import Range #use to get one range reading of the distance 
 
 class ControllerNode(Node):
     def __init__(self):
-        super().__init__('controller_node3')
+        super().__init__('controller_node2')
 
         # Create attributes to store odometry pose and velocity
         self.odom_pose = None
@@ -93,8 +84,6 @@ class ControllerNode(Node):
         ##this is the subscriber for the camera for the robot
         self.camera_subscriber = self.create_subscription(Image, '/thymio0/camera', self.image_callback, 10)
         self.bridge = CvBridge()
-
-
         # Reading csv file with pandas and giving names to each column
         index = ["color", "color_name", "hex", "R", "G", "B"]
         self.csv = pd.read_csv('/home/robotics23/dev_ws/src/HospitalHunter/data/colors.csv', names=index, header=None)
@@ -143,12 +132,14 @@ class ControllerNode(Node):
     ##gets the rgb when the mouse is clicked
     def getRGB(self, event, x, y, flags, param):
         if event == cv2.EVENT_LBUTTONDBLCLK:
+            self.init_forward() ###stops the robot from moving, since we want to detect the chosen colour
             self.clicked = True
             b, g, r = self.cv_image[y, x]
+            ##multiplied by 100 because in coppeliasim the values were 0.something etc
             self.b = int(b) * 100
             self.g = int(g) * 100
             self.r = int(r) * 100
-            #self.init_forward() ###stops the robot from moving, since we want to detect the chosen colour
+            
 
 
     # function to calculate minimum distance from all colors and get the most matching color
@@ -214,140 +205,82 @@ class ControllerNode(Node):
         
         return pose2
     
-    # def moving_robot(self):
+    def moving_robot(self):
 
-    #     # Wait until the first update is received from odometry and each proximity sensor
-    #     if self.odom_pose is None or \
-    #        len(self.proximity_distances) < len(self.proximity_sensors):
-    #         return
-        
-    #     # Check whether the state machine was asked to transition to a new 
-    #     # state in the previous timestep. In that case, call the initialization
-    #     # code for the new state.
-    #     if self.next_state != self.current_state:
-    #         self.get_logger().info(f"state_machine: transitioning from {self.current_state} to {self.next_state}")
-            
-    #         if self.next_state == ThymioState.FORWARD:
-    #             self.init_forward()
-    #         elif self.next_state == ThymioState.BACKUP:
-    #             self.init_backup()
-    #         elif self.next_state == ThymioState.ROTATING:
-    #             self.init_rotating()
-            
-    #         self.current_state = self.next_state
-        
-    #     # Call update code for the current state
-    #     if self.current_state == ThymioState.FORWARD:
-    #         self.update_forward()
-    #     elif self.current_state == ThymioState.BACKUP:
-    #         self.update_backup()
-    #     elif self.current_state == ThymioState.ROTATING:
-    #         self.update_rotating()
-
-
-    # def robot_camera(self):
-    #     if self.cv_image is None:
-    #         return
-
-    #     cv2.namedWindow('Image window')
-    #     # ##when image is clicked it gets the rgb colour
-    #     cv2.setMouseCallback('Image window', self.getRGB)
-
-    #     while True:
-
-    #         #mouse click on the part
-    #         cv2.imshow("Image window", self.cv_image)
-    #         if self.clicked:
-
-    #             # cv2.rectangle(image, start point, endpoint, color, thickness)-1 fills entire rectangle
-    #             cv2.rectangle(self.cv_image, (20, 20), (750, 60), (self.r, self.g, self.b), -1)
-
-    #             # Creating text string to display( Color name and RGB values )
-    #             text = self.get_color_name(self.r, self.g, self.b) + ' R=' + str(self.r) + ' G=' + str(self.g) + ' B=' + str(self.b)
-
-    #             # cv2.putText(img,text,start,font(0-7),fontScale,color,thickness,lineType )
-    #             cv2.putText(self.cv_image, text, (50, 50), 2, 0.8, (255, 255, 255), 2, cv2.LINE_AA)
-
-    #             # For very light colours we will display text in black colour
-    #             if self.r + self.g + self.b >= 600:
-    #                 cv2.putText(self.cv_image, text, (50, 50), 2, 0.8, (0, 0, 0), 2, cv2.LINE_AA)
-
-    #             self.clicked = False
-
-    #         # Break the loop when user hits 'esc' key
-    #         if cv2.waitKey(20) & 0xFF == 27:
-    #             break
-
-    #     cv2.destroyAllWindows()
-
-        
-    # def update_callback(self):
-    #     t1 = Thread(target= self.moving_robot)
-    #     t1.start()
-    #     self.get_logger().info("moving the robot")
-    #     t2 = Thread(target= self.robot_camera)
-    #     t2.start()
-    #     self.get_logger().info("showing the robot camera")
-        
-    def update_callback(self):
-        
-        if self.odom_pose is None or self.cv_image is None or \
-            len(self.proximity_distances) < len(self.proximity_sensors):
+        # Wait until the first update is received from odometry and each proximity sensor
+        if self.odom_pose is None or \
+           len(self.proximity_distances) < len(self.proximity_sensors):
             return
         
+        # Check whether the state machine was asked to transition to a new 
+        # state in the previous timestep. In that case, call the initialization
+        # code for the new state.
+        if self.next_state != self.current_state:
+            self.get_logger().info(f"state_machine: transitioning from {self.current_state} to {self.next_state}")
+            
+            if self.next_state == ThymioState.FORWARD:
+                self.init_forward()
+            elif self.next_state == ThymioState.BACKUP:
+                self.init_backup()
+            elif self.next_state == ThymioState.ROTATING:
+                self.init_rotating()
+            
+            self.current_state = self.next_state
+        
+        # Call update code for the current state
+        if self.current_state == ThymioState.FORWARD:
+            self.update_forward()
+        elif self.current_state == ThymioState.BACKUP:
+            self.update_backup()
+        elif self.current_state == ThymioState.ROTATING:
+            self.update_rotating()
+
+
+    def robot_camera(self):
+        if self.cv_image is None:
+            return
+
         cv2.namedWindow('Image window')
         # ##when image is clicked it gets the rgb colour
         cv2.setMouseCallback('Image window', self.getRGB)
 
-        ###do these actions while the camera is on  
-        while self.cv_image is not None:
+        while True:
+
             #mouse click on the part
             cv2.imshow("Image window", self.cv_image)
-
             if self.clicked:
+
+                # cv2.rectangle(image, start point, endpoint, color, thickness)-1 fills entire rectangle
+                cv2.rectangle(self.cv_image, (20, 20), (750, 60), (self.r, self.g, self.b), -1)
+
                 # Creating text string to display( Color name and RGB values )
-                self.text = self.get_color_name(self.r, self.g, self.b) + ' R=' + str(self.r) + ' G=' + str(self.g) + ' B=' + str(self.b)
-                self.get_logger().info(f'The colour red is this value {self.r}')
+                text = self.get_color_name(self.r, self.g, self.b) + ' R=' + str(self.r) + ' G=' + str(self.g) + ' B=' + str(self.b)
 
+                # cv2.putText(img,text,start,font(0-7),fontScale,color,thickness,lineType )
+                cv2.putText(self.cv_image, text, (50, 50), 2, 0.8, (255, 255, 255), 2, cv2.LINE_AA)
 
-            cmd_vel = Twist() 
-            cmd_vel.linear.x  = 2.2 # [m/s]
-            cmd_vel.angular.z = 0.0 # [rad/s]
-                
-            # # Publish the command
-            self.vel_publisher.publish(cmd_vel)
+                # For very light colours we will display text in black colour
+                if self.r + self.g + self.b >= 600:
+                    cv2.putText(self.cv_image, text, (50, 50), 2, 0.8, (0, 0, 0), 2, cv2.LINE_AA)
 
+                self.clicked = False
 
-            #self.nameOfColourOfObject = self.get_color_name(self.r, self.g, self.b) ###uses the rgb and gets the coloest colour to the object
-            #self.get_logger().info(f'The colour of the object is {self.nameOfColourOfObject}')
-
-
-            if self.next_state != self.current_state:
-                self.get_logger().info(f"state_machine: transitioning from {self.current_state} to {self.next_state}")
-                
-                if self.next_state == ThymioState.FORWARD:
-                    self.init_forward()
-                elif self.next_state == ThymioState.BACKUP:
-                    self.init_backup()
-                elif self.next_state == ThymioState.ROTATING:
-                    self.init_rotating()
-                
-                self.current_state = self.next_state
-            
-            # Call update code for the current state
-            if self.current_state == ThymioState.FORWARD:
-                self.update_forward()
-            elif self.current_state == ThymioState.BACKUP:
-                self.update_backup()
-            elif self.current_state == ThymioState.ROTATING:
-                self.update_rotating()
-
-            # cv2.waitKey(0)
-            # self.get_logger().info(f'The colour red is this value {self.r}')
             # Break the loop when user hits 'esc' key
-            if cv2.waitKey(0) & 0xFF == 27:
+            if cv2.waitKey(20) & 0xFF == 27:
                 break
+
         cv2.destroyAllWindows()
+
+        
+    def update_callback(self):
+        t1 = Thread(target= self.moving_robot)
+        t1.start()
+        self.get_logger().info("moving the robot")
+        t2 = Thread(target= self.robot_camera)
+        t2.start()
+        self.get_logger().info("showing the robot camera")
+
+      
 
     def init_forward(self):
         self.stop()

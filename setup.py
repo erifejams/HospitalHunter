@@ -29,7 +29,8 @@ setup(
     entry_points={
         'console_scripts': [
             #'controller_node = HospitalHunter.controller_node:main',
-            'controller_node3 = HospitalHunter.controller_node3:main'
+            'controller_node3 = HospitalHunter.controller_node3:main',
+            'controller_node2 = HospitalHunter.controller_node2:main'
         ],
     },
 )
